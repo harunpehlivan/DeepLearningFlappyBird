@@ -160,10 +160,8 @@ def trainNetwork(s, readout, h_fc1, sess):
 
             y_batch = []
             readout_j1_batch = readout.eval(feed_dict = {s : s_j1_batch})
-            for i in range(0, len(minibatch)):
-                terminal = minibatch[i][4]
-                # if terminal, only equals reward
-                if terminal:
+            for i in range(len(minibatch)):
+                if terminal := minibatch[i][4]:
                     y_batch.append(r_batch[i])
                 else:
                     y_batch.append(r_batch[i] + GAMMA * np.max(readout_j1_batch[i]))
@@ -187,7 +185,7 @@ def trainNetwork(s, readout, h_fc1, sess):
         state = ""
         if t <= OBSERVE:
             state = "observe"
-        elif t > OBSERVE and t <= OBSERVE + EXPLORE:
+        elif t <= OBSERVE + EXPLORE:
             state = "explore"
         else:
             state = "train"

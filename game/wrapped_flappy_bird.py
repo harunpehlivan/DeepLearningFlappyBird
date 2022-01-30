@@ -68,12 +68,9 @@ class GameState:
 
         # input_actions[0] == 1: do nothing
         # input_actions[1] == 1: flap the bird
-        if input_actions[1] == 1:
-            if self.playery > -2 * PLAYER_HEIGHT:
-                self.playerVelY = self.playerFlapAcc
-                self.playerFlapped = True
-                #SOUNDS['wing'].play()
-
+        if input_actions[1] == 1 and self.playery > -2 * PLAYER_HEIGHT:
+            self.playerVelY = self.playerFlapAcc
+            self.playerFlapped = True
         # check for score
         playerMidPos = self.playerx + PLAYER_WIDTH / 2
         for pipe in self.upperPipes:
@@ -95,9 +92,7 @@ class GameState:
         if self.playerFlapped:
             self.playerFlapped = False
         self.playery += min(self.playerVelY, BASEY - self.playery - PLAYER_HEIGHT)
-        if self.playery < 0:
-            self.playery = 0
-
+        self.playery = max(self.playery, 0)
         # move pipes to left
         for uPipe, lPipe in zip(self.upperPipes, self.lowerPipes):
             uPipe['x'] += self.pipeVelX
@@ -114,11 +109,11 @@ class GameState:
             self.upperPipes.pop(0)
             self.lowerPipes.pop(0)
 
-        # check if crash here
-        isCrash= checkCrash({'x': self.playerx, 'y': self.playery,
-                             'index': self.playerIndex},
-                            self.upperPipes, self.lowerPipes)
-        if isCrash:
+        if isCrash := checkCrash(
+            {'x': self.playerx, 'y': self.playery, 'index': self.playerIndex},
+            self.upperPipes,
+            self.lowerPipes,
+        ):
             #SOUNDS['hit'].play()
             #SOUNDS['die'].play()
             terminal = True
@@ -163,10 +158,7 @@ def getRandomPipe():
 def showScore(score):
     """displays score in center of screen"""
     scoreDigits = [int(x) for x in list(str(score))]
-    totalWidth = 0 # total width of all numbers to be printed
-
-    for digit in scoreDigits:
-        totalWidth += IMAGES['numbers'][digit].get_width()
+    totalWidth = sum(IMAGES['numbers'][digit].get_width() for digit in scoreDigits)
 
     Xoffset = (SCREENWIDTH - totalWidth) / 2
 
@@ -181,30 +173,27 @@ def checkCrash(player, upperPipes, lowerPipes):
     player['w'] = IMAGES['player'][0].get_width()
     player['h'] = IMAGES['player'][0].get_height()
 
-    # if player crashes into ground
     if player['y'] + player['h'] >= BASEY - 1:
         return True
-    else:
+    playerRect = pygame.Rect(player['x'], player['y'],
+                  player['w'], player['h'])
 
-        playerRect = pygame.Rect(player['x'], player['y'],
-                      player['w'], player['h'])
+    for uPipe, lPipe in zip(upperPipes, lowerPipes):
+        # upper and lower pipe rects
+        uPipeRect = pygame.Rect(uPipe['x'], uPipe['y'], PIPE_WIDTH, PIPE_HEIGHT)
+        lPipeRect = pygame.Rect(lPipe['x'], lPipe['y'], PIPE_WIDTH, PIPE_HEIGHT)
 
-        for uPipe, lPipe in zip(upperPipes, lowerPipes):
-            # upper and lower pipe rects
-            uPipeRect = pygame.Rect(uPipe['x'], uPipe['y'], PIPE_WIDTH, PIPE_HEIGHT)
-            lPipeRect = pygame.Rect(lPipe['x'], lPipe['y'], PIPE_WIDTH, PIPE_HEIGHT)
+        # player and upper/lower pipe hitmasks
+        pHitMask = HITMASKS['player'][pi]
+        uHitmask = HITMASKS['pipe'][0]
+        lHitmask = HITMASKS['pipe'][1]
 
-            # player and upper/lower pipe hitmasks
-            pHitMask = HITMASKS['player'][pi]
-            uHitmask = HITMASKS['pipe'][0]
-            lHitmask = HITMASKS['pipe'][1]
+        # if bird collided with upipe or lpipe
+        uCollide = pixelCollision(playerRect, uPipeRect, pHitMask, uHitmask)
+        lCollide = pixelCollision(playerRect, lPipeRect, pHitMask, lHitmask)
 
-            # if bird collided with upipe or lpipe
-            uCollide = pixelCollision(playerRect, uPipeRect, pHitMask, uHitmask)
-            lCollide = pixelCollision(playerRect, lPipeRect, pHitMask, lHitmask)
-
-            if uCollide or lCollide:
-                return True
+        if uCollide or lCollide:
+            return True
 
     return False
 
